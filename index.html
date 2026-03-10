@@ -93,7 +93,8 @@
     .grid-4,
     .chapter-list,
     .task-list,
-    .log-list {
+    .log-list,
+    .reference-list {
       display: grid;
       gap: 16px;
     }
@@ -148,6 +149,7 @@
     .chapter-item,
     .task-item,
     .log-item,
+    .reference-item,
     .export-box {
       background: var(--surface);
       border: 1px solid var(--line);
@@ -271,13 +273,15 @@
 
     .chapter-item,
     .task-item,
-    .log-item {
+    .log-item,
+    .reference-item {
       padding: 14px 16px;
     }
 
     .chapter-item strong,
     .task-item strong,
-    .log-item strong {
+    .log-item strong,
+    .reference-item strong {
       display: block;
       margin-bottom: 6px;
       font-size: 15px;
@@ -286,6 +290,10 @@
     .chapter-item .row,
     .task-item .row {
       align-items: flex-start;
+    }
+
+    .reference-item .meta {
+      margin-top: 6px;
     }
 
     .tag {
@@ -506,6 +514,44 @@
 
         <aside class="card">
           <div class="card-head">
+            <h2>文献库</h2>
+            <span class="muted">记录核心文献、用途和当前价值</span>
+          </div>
+          <form class="stack" id="referenceForm">
+            <label>文献标题
+              <input id="referenceTitle" type="text" placeholder="例如：某篇核心综述或对比论文">
+            </label>
+            <div class="grid-3">
+              <label>作者 / 年份
+                <input id="referenceAuthor" type="text" placeholder="例如：Zhang et al., 2024">
+              </label>
+              <label>用途
+                <select id="referenceUse">
+                  <option value="研究背景">研究背景</option>
+                  <option value="文献综述">文献综述</option>
+                  <option value="方法依据">方法依据</option>
+                  <option value="结果对比">结果对比</option>
+                  <option value="结论支撑">结论支撑</option>
+                </select>
+              </label>
+              <label>重要程度
+                <select id="referencePriority">
+                  <option value="高">高</option>
+                  <option value="中" selected>中</option>
+                  <option value="低">低</option>
+                </select>
+              </label>
+            </div>
+            <label>文献备注
+              <input id="referenceNote" type="text" placeholder="例如：适合放在第四章结果对比里引用">
+            </label>
+            <button class="btn primary" type="submit">添加文献</button>
+          </form>
+          <div class="reference-list" id="referenceList"></div>
+        </aside>
+
+        <aside class="card">
+          <div class="card-head">
             <h2>写作记录</h2>
             <span class="muted">记录今天推进、卡点和明天动作</span>
           </div>
@@ -555,7 +601,8 @@
       meta: "thesis-tool-meta",
       chapters: "thesis-tool-chapters",
       tasks: "thesis-tool-tasks",
-      logs: "thesis-tool-logs"
+      logs: "thesis-tool-logs",
+      references: "thesis-tool-references"
     };
 
     const defaultMeta = {
@@ -579,6 +626,11 @@
       { id: 1, title: "补完一个关键结果小节", detail: "至少形成一个能给导师看的完整段落。", done: false },
       { id: 2, title: "统一一轮变量和格式", detail: "把今天动过的章节里最明显的格式问题扫掉。", done: false },
       { id: 3, title: "写下明天第一件事", detail: "降低明天重新进入写作状态的成本。", done: false }
+    ];
+
+    const defaultReferences = [
+      { id: 1, title: "核心综述文献", author: "Author et al., 2023", use: "文献综述", priority: "高", note: "用于梳理研究背景和研究路线。" },
+      { id: 2, title: "方法依据文献", author: "Researcher et al., 2022", use: "方法依据", priority: "中", note: "用于支撑模型设定或方法选择。" }
     ];
 
     const $ = (id) => document.getElementById(id);
@@ -612,6 +664,15 @@
         return defaultTasks.slice();
       }
       return tasks;
+    }
+
+    function ensureReferences() {
+      const references = loadJson(STORAGE_KEYS.references, null);
+      if (!references || !Array.isArray(references)) {
+        saveJson(STORAGE_KEYS.references, defaultReferences);
+        return defaultReferences.slice();
+      }
+      return references;
     }
 
     function getTagClass(status) {
@@ -652,7 +713,7 @@
       $("statusChip").textContent = doneTasks === tasks.length && tasks.length > 0 ? "今日任务已清空" : "今日计划进行中";
     }
 
-    function renderSummary(meta, chapters, tasks, logs) {
+    function renderSummary(meta, chapters, tasks, logs, references) {
       const avg = Math.round(chapters.reduce((sum, item) => sum + Number(item.progress || 0), 0) / chapters.length);
       const weakest = chapters.slice().sort((a, b) => a.progress - b.progress)[0];
       const doneTasks = tasks.filter((item) => item.done).length;
@@ -661,7 +722,7 @@
         '<div class="stat"><small>论文题目</small><strong>' + (meta.title || "未填写") + '</strong><span>' + (meta.advisor ? "导师：" + meta.advisor : "建议先把论文题目和导师填上。") + '</span></div>' +
         '<div class="stat"><small>当前阶段</small><strong>' + meta.stage + '</strong><span>当前主攻：' + meta.focusChapter + '</span></div>' +
         '<div class="stat"><small>章节均值</small><strong>' + avg + '%</strong><span>最弱章节：' + weakest.name + '（' + weakest.progress + '%）</span></div>' +
-        '<div class="stat"><small>任务推进</small><strong>' + doneTasks + ' / ' + tasks.length + '</strong><span>最近记录：' + (logs[0] ? logs[0].done : "暂无") + '</span></div>';
+        '<div class="stat"><small>任务推进</small><strong>' + doneTasks + ' / ' + tasks.length + '</strong><span>文献库：' + references.length + ' 条</span></div>';
     }
 
     function renderChapters(chapters) {
@@ -715,7 +776,22 @@
       }).join("");
     }
 
-    function renderExport(meta, chapters, tasks, logs) {
+    function renderReferences(references) {
+      if (!references.length) {
+        $("referenceList").innerHTML = '<div class="muted">还没有文献。先加几篇真正会反复用到的核心文献。</div>';
+        return;
+      }
+
+      $("referenceList").innerHTML = references.slice(0, 8).map((item) => {
+        const tagClass = item.priority === "高" ? "red" : item.priority === "中" ? "gold" : "navy";
+        return '<div class="reference-item">' +
+          '<div class="row"><div><strong>' + item.title + '</strong><span>' + item.note + '</span></div><span class="tag ' + tagClass + '">' + item.priority + '</span></div>' +
+          '<div class="meta">' + item.author + ' · 用途：' + item.use + '</div>' +
+          '</div>';
+      }).join("");
+    }
+
+    function renderExport(meta, chapters, tasks, logs, references) {
       const doneTasks = tasks.filter((item) => item.done).length;
       const weakest = chapters.slice().sort((a, b) => a.progress - b.progress)[0];
       const text = [
@@ -726,11 +802,17 @@
         "今日核心目标：" + (meta.todayGoal || "未填写"),
         "任务完成：" + doneTasks + "/" + tasks.length,
         "最弱章节：" + weakest.name + "（" + weakest.progress + "%）",
+        "核心文献数：" + references.length,
+        "",
+        "最近文献："
+      ].concat(references.slice(0, 3).map((item, index) => {
+        return (index + 1) + ". " + item.title + " | " + item.author + " | 用途：" + item.use + " | 备注：" + item.note;
+      })).concat([
         "",
         "最近记录："
       ].concat(logs.slice(0, 3).map((item, index) => {
         return (index + 1) + ". " + item.date + " | 推进：" + item.done + " | 卡点：" + item.pain + " | 明天第一件事：" + item.next;
-      })).join("\n");
+      }))).join("\n");
 
       $("exportBox").textContent = text;
     }
@@ -740,12 +822,14 @@
       const chapters = ensureChapters();
       const tasks = ensureTasks();
       const logs = loadJson(STORAGE_KEYS.logs, []);
+      const references = ensureReferences();
       updateHero(meta, chapters, tasks);
-      renderSummary(meta, chapters, tasks, logs);
+      renderSummary(meta, chapters, tasks, logs, references);
       renderChapters(chapters);
       renderTasks(tasks);
+      renderReferences(references);
       renderLogs(logs);
-      renderExport(meta, chapters, tasks, logs);
+      renderExport(meta, chapters, tasks, logs, references);
     }
 
     $("metaForm").addEventListener("submit", function(event) {
@@ -819,6 +903,28 @@
         next: next || "未填写"
       });
       saveJson(STORAGE_KEYS.logs, logs.slice(0, 20));
+      event.target.reset();
+      renderAll();
+    });
+
+    $("referenceForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+      const title = $("referenceTitle").value.trim();
+      const author = $("referenceAuthor").value.trim();
+      const use = $("referenceUse").value;
+      const priority = $("referencePriority").value;
+      const note = $("referenceNote").value.trim();
+      if (!title) return;
+      const references = ensureReferences();
+      references.unshift({
+        id: Date.now(),
+        title: title,
+        author: author || "未填写作者年份",
+        use: use,
+        priority: priority,
+        note: note || "未填写备注"
+      });
+      saveJson(STORAGE_KEYS.references, references.slice(0, 50));
       event.target.reset();
       renderAll();
     });
